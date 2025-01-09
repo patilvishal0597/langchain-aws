@@ -19,6 +19,7 @@ from typing import (
     cast,
 )
 
+import logging
 import boto3
 from langchain_core.callbacks import CallbackManagerForLLMRun
 from langchain_core.language_models import BaseChatModel, LanguageModelInput
@@ -55,7 +56,8 @@ from langchain_aws.function_calling import ToolsOutputParser
 
 _BM = TypeVar("_BM", bound=BaseModel)
 _DictOrPydanticClass = Union[Dict[str, Any], Type[_BM], Type]
-
+logging.basicConfig(level=logging.INFO)
+# logging.getLogger('langchain_aws').setLevel(logging.DEBUG)
 
 class ChatBedrockConverse(BaseChatModel):
     """Bedrock chat model integration built on the Bedrock converse API.
@@ -495,6 +497,7 @@ class ChatBedrockConverse(BaseChatModel):
     ) -> ChatResult:
         """Top Level call"""
         bedrock_messages, system = _messages_to_bedrock(messages)
+        logging.info(f"The input message sent by user: {bedrock_messages}")
         params = self._converse_params(
             stop=stop, **_snake_to_camel_keys(kwargs, excluded_keys={"inputSchema"})
         )
@@ -502,6 +505,7 @@ class ChatBedrockConverse(BaseChatModel):
             messages=bedrock_messages, system=system, **params
         )
         response_message = _parse_response(response)
+        logging.info(f"The output message sent by user: {response_message}")
         return ChatResult(generations=[ChatGeneration(message=response_message)])
 
     def _stream(
@@ -512,12 +516,14 @@ class ChatBedrockConverse(BaseChatModel):
         **kwargs: Any,
     ) -> Iterator[ChatGenerationChunk]:
         bedrock_messages, system = _messages_to_bedrock(messages)
+        # logging.info(f"The input message sent by user: {bedrock_messages}")
         params = self._converse_params(
             stop=stop, **_snake_to_camel_keys(kwargs, excluded_keys={"inputSchema"})
         )
         response = self.client.converse_stream(
             messages=bedrock_messages, system=system, **params
         )
+        # logging.info(f"The output message sent by user: {response_message}")
         for event in response["stream"]:
             if message_chunk := _parse_stream_event(event):
                 yield ChatGenerationChunk(message=message_chunk)
